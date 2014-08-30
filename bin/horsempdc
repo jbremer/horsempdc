@@ -1,0 +1,15 @@
+#!/usr/bin/env python
+# Copyright (C) 2014 Jurriaan Bremer.
+# This file is part of HorseMPDC - http://www.horsempdc.org/.
+# See the file 'docs/LICENSE.txt' for copying permission.
+
+import argparse
+
+from horsempdc.mpd.mopidy import MopidyClient
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--host', type=str, default='localhost:6680', help='Host to Mopidy.')
+    args = parser.parse_args()
+
+    mpd = MopidyClient(host=args.host)
