@@ -18,7 +18,7 @@ log = logging.getLogger('horsempdc')
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('-d', '--debug', action='store_true', help='Enable debug logging.')
-    parser.add_argument('--host', type=str, default='localhost:6680', help='Host to Mopidy.')
+    parser.add_argument('host', type=str, nargs='?', default='localhost:6680', help='Host to Mopidy.')
     args = parser.parse_args()
 
     if args.debug:
