@@ -31,7 +31,6 @@ class Curse(object):
         curses.noecho()
         curses.cbreak()
         self.stdscr.keypad(1)
-        curses.wrapper(self.handle_exception)
 
         self.draw()
 
@@ -40,9 +39,6 @@ class Curse(object):
         self.stdscr.keypad(0)
         curses.echo()
         curses.endwin()
-
-    def handle_exception(self, stdscr):
-        log.error('Uncaught exception..')
 
     def draw_menu(self, x):
         _, width = self.stdscr.getmaxyx()
@@ -58,6 +54,7 @@ class Curse(object):
         self.draw_menu(x)
 
     def wait(self):
+        self.stdscr.refresh()
         ch = self.stdscr.getch()
         log.debug('Received character %d (%s)',
                   ch, self.CHARACTERS.get(ch, ch))
