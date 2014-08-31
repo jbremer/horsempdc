@@ -32,7 +32,7 @@ class Curse(object):
         curses.cbreak()
         self.stdscr.keypad(1)
 
-        self.draw()
+        self.draw_menu()
 
     def finish(self):
         curses.nocbreak()
@@ -40,18 +40,14 @@ class Curse(object):
         curses.echo()
         curses.endwin()
 
-    def draw_menu(self, x):
-        _, width = self.stdscr.getmaxyx()
+    def draw_menu(self):
+        height, width = self.stdscr.getmaxyx()
 
         for idx, row in enumerate(self.MENU):
             offset = int(idx * width / len(self.MENU))
             self.stdscr.addstr(0, offset, '%d: %s' % (idx + 1, row))
 
         self.stdscr.hline(1, 0, ord('-'), width)
-
-    def draw(self):
-        y, x = self.stdscr.getmaxyx()
-        self.draw_menu(x)
 
     def wait(self):
         self.stdscr.refresh()
