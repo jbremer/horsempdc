@@ -316,6 +316,8 @@ class Curse(object):
         # keys, e.g., Page Down, etc. We do this now as most special keys are
         # only available after initscr() has been called.
         self.characters = {
+            4: 'ctrl_d',
+            21: 'ctrl_u',
             27: 'alt',
         }
 
@@ -386,15 +388,15 @@ class Curse(object):
 
         # Check if we can resolve this character in our mapping and otherwise
         # use the .keyname() function to resolve it.
-        ch = self.characters.get(ch, curses.keyname(ch))
-        log.debug('Received character %r', ch)
+        key = self.characters.get(ch, curses.keyname(ch))
+        log.debug('Received character %r (%d)', key, ch)
 
         # Handle this event.
         try:
-            if not hasattr(self, '_handle_%s' % ch):
-                raise AngryHorseException('Unknown keybinding: %r' % ch)
+            if not hasattr(self, '_handle_%s' % key):
+                raise AngryHorseException('Unknown keybinding: %r' % key)
 
-            getattr(self, '_handle_%s' % ch)()
+            getattr(self, '_handle_%s' % key)()
         except AngryHorseException as e:
             self.angry_horse(e.message)
 
@@ -434,3 +436,9 @@ class Curse(object):
 
     def _handle_ppage(self):
         self.layout.scroll(-self.height + 4)
+
+    def _handle_ctrl_d(self):
+        self.layout.scroll((self.height - 4) / 2)
+
+    def _handle_ctrl_u(self):
+        self.layout.scroll((-self.height + 4) / 2)
