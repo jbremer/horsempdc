@@ -26,14 +26,17 @@ if __name__ == '__main__':
     else:
         init_logging(level=logging.INFO)
 
-    mpd = MopidyClient(host=args.host)
-    curse = Curse(['help', 'playlist', 'bands'], 3, bands=mpd.bands())
-
-    curse.walking_horse()
-    curse.redraw()
-
+    curse = None
     try:
+        mpd = MopidyClient(host=args.host)
+
+        curse = Curse(['help', 'playlist', 'bands'], 3, bands=mpd.bands())
+
+        curse.walking_horse()
+        curse.redraw()
+
         while True:
             curse.wait()
     except (TranquilizerException, KeyboardInterrupt):
-        curse.finish()
+        if curse:
+            curse.finish()
