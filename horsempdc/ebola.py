@@ -9,7 +9,7 @@ import locale
 import logging
 import time
 
-from horsempdc.art import doge_horse
+from horsempdc.art import doge_horse, angry_horse
 
 locale.setlocale(locale.LC_ALL, '')
 log = logging.getLogger(__name__)
@@ -136,6 +136,24 @@ class Curse(object):
 
         self.stdscr.addstr(self.height - 1, 0, line)
 
+    def angry_horse(self, ch):
+        lines = angry_horse.split('\n')
+        rows = len(lines)
+        columns = max(len(line) for line in lines)
+
+        self.redraw()
+
+        for idx, line in enumerate(lines):
+            x = (self.width - columns) / 2
+            y = (self.height - rows) / 2 + idx
+            self.stdscr.addstr(y, x, line)
+
+        self.status('Unknown keybinding: %r', ch)
+        self.stdscr.refresh()
+        time.sleep(0.1)
+        self.redraw()
+        self.status('Unknown keybinding: %r', ch)
+
     def wait(self):
         self.stdscr.refresh()
         ch = self.stdscr.getch()
@@ -148,7 +166,7 @@ class Curse(object):
         log.debug('Received character %r', ch)
 
         if not hasattr(self, '_handle_%s' % ch):
-            self.status('Unknown keybinding: %r', ch)
+            self.angry_horse(ch)
         else:
             getattr(self, '_handle_%s' % ch)()
 
