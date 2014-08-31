@@ -299,6 +299,9 @@ class Curse(object):
         # Enable colors.
         curses.start_color()
 
+        # Enable transparency.
+        curses.use_default_colors()
+
         # Don't echo characters right away.
         curses.noecho()
 
