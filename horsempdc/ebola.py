@@ -30,6 +30,17 @@ class Curse(object):
 
         self.height, self.width = self.stdscr.getmaxyx()
 
+        # Initialize the characters (do it now as most are only available
+        # after initscr() has been called.)
+        self.characters = {
+            27: 'alt',
+        }
+
+        for key in dir(curses):
+            value = getattr(curses, key)
+            if key.startswith('KEY_') and isinstance(value, int):
+                self.characters[value] = key[4:].lower()
+
     def finish(self):
         curses.nocbreak()
         self.stdscr.keypad(0)
@@ -93,11 +104,13 @@ class Curse(object):
 
     def wait(self):
         self.stdscr.refresh()
-        ch = self.stdscr.getkey()
+        ch = self.stdscr.getch()
+
+        ch = self.characters.get(ch, curses.keyname(ch))
         log.debug('Received character %r', ch)
 
         if not hasattr(self, '_handle_%s' % ch):
-            self.status('Unknown keybinding: %s', ch)
+            self.status('Unknown keybinding: %r', ch)
         else:
             getattr(self, '_handle_%s' % ch)()
 
