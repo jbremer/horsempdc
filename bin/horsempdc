@@ -28,6 +28,9 @@ if __name__ == '__main__':
     mpd = MopidyClient(host=args.host)
     curse = Curse()
 
+    curse.draw_menu()
+    curse.draw_pads(bands=mpd.bands())
+
     try:
         while True:
             curse.wait()

@@ -8,9 +8,21 @@ from horsempdc.jsonrpc import JsonRPC
 
 class MopidyClient(MPD):
     def __init__(self, host):
-        if ':' in host:
-            host, port = host.split(':')
+        MPD.__init__(self, host)
+
+        if ':' in self.host:
+            host, port = self.host.split(':')
         else:
             port = 6680
 
         self.jsonrpc = JsonRPC('http://%s:%s/mopidy/rpc' % (host, port))
+        self.query = self.jsonrpc.query
+
+    def bands(self):
+        if not self._bands:
+            rows = self.query('core.library.browse', uri='local:directory')
+
+            for row in rows:
+                self._bands[row['name']] = row['uri']
+
+        return self._bands_ordered()

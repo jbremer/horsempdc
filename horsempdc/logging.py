@@ -24,3 +24,7 @@ def init_logging(level=logging.INFO):
     log.addHandler(fh)
 
     log.setLevel(level)
+
+    # Disable logging for the requests library.
+    logging.getLogger('requests').setLevel(logging.WARNING)
+    logging.getLogger('urllib3').setLevel(logging.WARNING)
