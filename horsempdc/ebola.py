@@ -10,36 +10,214 @@ import logging
 import time
 
 from horsempdc.art import doge_horse, angry_horse
-from horsempdc.exceptions import TranquilizerException
+from horsempdc.exceptions import AngryHorseException, TranquilizerException
 
 locale.setlocale(locale.LC_ALL, '')
+LOCALE = locale.getpreferredencoding()
+
 log = logging.getLogger(__name__)
 
 
+class WalkingHorse(object):
+    def __init__(self):
+        pass
+
+
+class Column(object):
+    def __init__(self, name):
+        self.name = name
+
+        self.pad = None
+
+        self.x = None
+        self.y = None
+        self.width = None
+        self.height = None
+
+        # Current item index.
+        self.index = 0
+
+        # List offset from what should be visible in the pad.
+        self.offset = 0
+
+    def populate(self, lines):
+        self.lines = lines
+
+    def prepare(self):
+        if self.pad is None:
+            self.pad = curses.newpad(len(self.lines), self.width - 1)
+
+            for idx, line in enumerate(self.lines):
+                self.pad.addstr(idx, 0, line.encode(LOCALE))
+
+    def highlight(self, enable=True):
+        attr = curses.A_REVERSE if enable else 0
+        length = len(self.lines[self.index])
+        self.pad.chgat(self.index, 0, length, attr)
+
+    def refresh(self):
+        self.pad.refresh(self.offset, 0,
+                         self.y, self.x,
+                         self.y + self.height - 1,
+                         self.x + self.width - 1)
+
+    def draw(self):
+        self.refresh()
+
+    def scroll(self, difference):
+        # Top of the list.
+        if self.index + difference < 0:
+            if difference == -1:
+                raise AngryHorseException('Top of the list!')
+
+        # End of the list.
+        elif self.index + difference >= len(self.lines):
+            if difference == 1:
+                raise AngryHorseException('End of the list!')
+
+        # Handle this scroll.
+        else:
+            self.highlight(False)
+            self.index += difference
+            self.highlight(True)
+            self.refresh()
+
+
+class BandsColumn(Column):
+    def __init__(self, name, bands):
+        Column.__init__(self, name)
+        self.populate(bands)
+
+
+class Layout(object):
+    def __init__(self, window, *columns):
+        self.window = window
+        self.columns = columns
+
+        self.lines = []
+        self.status_line = ''
+
+    def status(self, line, *args):
+        # Apply any arguments if given.
+        line = line % args if args else line
+
+        # Pad the line until the end of the screen.
+        line += ' ' * (self.width - len(line) - 1)
+
+        self.status_line = line
+
+    def active_column(self, index):
+        if index >= 0 and index < len(self.columns):
+            self.current = self.columns[index]
+
+    def scroll(self, difference):
+        self.current.scroll(difference)
+
+    def resize(self):
+        self.height, self.width = self.window.getmaxyx()
+        self.draw()
+
+    def draw(self):
+        self.column_width = self.width / len(self.columns)
+
+        # Horizontal lines. One on top to distinguish the columns, one on the
+        # bottom to distinguish the status line.
+        self.window.hline(1, 0, curses.ACS_HLINE, self.width)
+        self.window.hline(self.height - 2, 0, curses.ACS_HLINE, self.width)
+
+        # Draw each column's name.
+        for idx, column in enumerate(self.columns):
+            # Initialize this Columns location properties.
+            column.y = 2
+            column.x = idx * self.column_width
+            column.width = self.column_width
+            column.height = self.height - column.y - 2
+
+            # Ensure the pad is ready to be used.
+            column.prepare()
+
+            self.window.addstr(0, self.column_width * idx,
+                               '%d: %s' % (idx + 1, column.name))
+
+        for idx in xrange(1, len(self.columns)):
+            # Vertical line to distinguish between the various columns.
+            self.window.vline(0, self.column_width * idx - 1,
+                              curses.ACS_VLINE, self.height - 2)
+
+            # Plus sign at points where horizontal and vertical lines cross in
+            # the menu and "bottom tee" signs where the vertical lines and the
+            # status line meet.
+            self.window.addch(1, self.column_width * idx - 1, curses.ACS_PLUS)
+            self.window.addch(self.height - 2, self.column_width * idx - 1,
+                              curses.ACS_BTEE)
+
+        # Highlight whatever is active.
+        self.current.highlight()
+
+        # Draw the columns.
+        for column in self.columns:
+            column.draw()
+
+        # Draw the status line.
+        self.window.addstr(self.height - 1, 0, self.status_line)
+
+
 class Curse(object):
-    MENU = [
-        'help',
-        'playlist',
-        'bands',
-    ]
-
-    LOCALE = locale.getpreferredencoding()
-
     def __init__(self, bands):
-        self.stdscr = curses.initscr()
-        curses.noecho()
-        curses.cbreak()
-        self.stdscr.keypad(1)
-        curses.curs_set(0)
+        self._init_ncurses()
 
-        self.lines = {
-            2: bands,
+        self.columns = {
+            'help': Column('help'),
+            'playlist': Column('playlist'),
         }
+
+        self.columns['help'].populate(['foo', 'bar', 'help'])
+        self.columns['playlist'].populate(['foo', 'bar', 'playlist'])
+        self.columns['bands'] = BandsColumn('bands', bands)
+
+        # Callback function that can be used to handle non-blocking events,
+        # when .getch() returns "failure", i.e., no keys available.
+        self._nonblocking_handler = None
+
+        # Default layout.
+        self.layout = Layout(self.stdscr,
+                             self.columns['help'],
+                             self.columns['playlist'],
+                             self.columns['bands'])
+
+        self.layout.active_column(2)
 
         self.height, self.width = self.stdscr.getmaxyx()
 
-        # Initialize the characters (do it now as most are only available
-        # after initscr() has been called.)
+        self._horse_index = 0
+        self._status_line = ''
+
+        self.pad_index = 2
+        self.list_index = 0
+
+    def _init_ncurses(self):
+        # Initialize ncurses and get the main window object.
+        self.stdscr = curses.initscr()
+
+        # Enable colors.
+        curses.start_color()
+
+        # Don't echo characters right away.
+        curses.noecho()
+
+        # Disable buffering - characters are passed through (and available
+        # through .getch() right away.)
+        curses.cbreak()
+
+        # Let ncurses interpret special keyboard keys.
+        self.stdscr.keypad(1)
+
+        # Disable the cursor.
+        curses.curs_set(0)
+
+        # Initialize the characters lookup which helps us to resolve special
+        # keys, e.g., Page Down, etc. We do this now as most special keys are
+        # only available after initscr() has been called.
         self.characters = {
             27: 'alt',
         }
@@ -49,13 +227,8 @@ class Curse(object):
             if key.startswith('KEY_') and isinstance(value, int):
                 self.characters[value] = key[4:].lower()
 
-        self._horse_index = 0
-        self._status_line = ''
-
-        self.pad_index = 2
-        self.list_index = 0
-
     def finish(self):
+        # Nothing special here - just resetting to the original state.
         curses.nocbreak()
         self.stdscr.keypad(0)
         curses.echo()
@@ -68,10 +241,14 @@ class Curse(object):
 
         self.redraw()
 
-        # Begin and end of the horse ride.
+        # Begin of the horse ride.
         if not self._horse_index:
+            self._nonblocking_handler = self.walking_horse
             self.stdscr.nodelay(1)
+
+        # End of the horse ride.
         elif self._horse_index + columns >= self.width:
+            self._nonblocking_handler = None
             self.stdscr.nodelay(0)
             return
 
@@ -82,81 +259,13 @@ class Curse(object):
         self._horse_index += 2
 
         self.stdscr.refresh()
-
-    def draw_menu(self, borders=True):
-        self.column_width = self.width / len(self.MENU)
-
-        # Horizontal lines. One on top to distinguish the menu, one on the
-        # bottom to distinguish the status line.
-        if borders:
-            self.stdscr.hline(1, 0, curses.ACS_HLINE, self.width)
-            self.stdscr.hline(self.height - 2, 0, curses.ACS_HLINE, self.width)
-
-        # Draw each menu.
-        for idx, row in enumerate(self.MENU):
-            self.stdscr.addstr(0, self.column_width * idx,
-                               '%d: %s' % (idx + 1, row))
-
-            # Vertical line to distinguish between the various menus.
-            if idx and borders:
-                self.stdscr.vline(0, self.column_width * idx - 1,
-                                  curses.ACS_VLINE, self.height - 2)
-
-        # Plus sign at points where horizontal and vertical lines cross in
-        # the menu and "bottom tee" signs where the vertical lines and the
-        # status line meet.
-        for idx in xrange(1, len(self.MENU)):
-            self.stdscr.addch(1, self.column_width * idx - 1, curses.ACS_PLUS)
-            self.stdscr.addch(self.height - 2, self.column_width * idx - 1,
-                              curses.ACS_BTEE)
-
-    def _pad_refresh(self, pad, index):
-        pad.refresh(0, 0,
-                    2, self.column_width * index,
-                    self.height - 3, self.column_width * (index + 1) - 1)
-
-    def _draw_pad(self, index, lines):
-        pad = curses.newpad(len(lines), self.column_width - 1)
-
-        for idx, line in enumerate(lines):
-            pad.addstr(idx, 0, line.encode(self.LOCALE))
-
-        # Highlight line if required.
-        if self.pad_index == index:
-            pad.chgat(self.list_index, 0,
-                      len(self.lines[self.pad_index][self.list_index]),
-                      curses.A_REVERSE)
-
-        self._pad_refresh(pad, index)
-        return pad
-
-    def draw_pads(self):
-        self.stdscr.refresh()
-
-        self.pads_index = {
-            2: 0,
-        }
-
-        self.pads = {
-            2: self._draw_pad(2, self.lines[2]),
-        }
+        time.sleep(0.1)
 
     def redraw(self):
         self.stdscr.erase()
-        self.draw_menu()
-        self.draw_pads()
-
-        self.status(self._status_line)
-
-    def status(self, line, *args):
-        # Apply any arguments if given.
-        line = line % args if args else line
-
-        # Pad the line until the end of the screen.
-        line += ' ' * (self.width - len(line) - 1)
-
-        self._status_line = line
-        self.stdscr.addstr(self.height - 1, 0, line)
+        self.stdscr.refresh()
+        self.layout.resize()
+        self.stdscr.refresh()
 
     def angry_horse(self, *status_line):
         lines = angry_horse.split('\n')
@@ -170,34 +279,38 @@ class Curse(object):
             y = (self.height - rows) / 2 + idx
             self.stdscr.addstr(y, x, line, curses.A_BOLD)
 
-        self.status(*status_line)
+        self.layout.status(*status_line)
         self.stdscr.refresh()
-        time.sleep(0.1)
+        time.sleep(0.2)
         self.redraw()
-        self.status(*status_line)
-
-    def toggle_highlight(self, pad_index, list_index, enable):
-        length = len(self.lines[pad_index][list_index])
-        attr = curses.A_REVERSE if enable else 0
-        self.pads[pad_index].chgat(list_index, 0, length, attr)
+        self.layout.status(*status_line)
 
     def wait(self):
+        # Ensure the screen is entirely up-to-date before entering blocking
+        # mode. (Or, at least, normally this will be blocking mode.)
         self.stdscr.refresh()
+
         ch = self.stdscr.getch()
         if ch < 0:
-            time.sleep(0.10)
-            self.walking_horse()
+            # If .getch() returns -1 then we're in non-blocking mode which is
+            # only the case when this has been specifically requested. Thus
+            # we allow the event to be handled.
+            self._nonblocking_handler()
             return
 
+        # Check if we can resolve this character in our mapping and otherwise
+        # use the .keyname() function to resolve it.
         ch = self.characters.get(ch, curses.keyname(ch))
         log.debug('Received character %r', ch)
 
-        if not hasattr(self, '_handle_%s' % ch):
-            self.angry_horse('Unknown keybinding: %r', ch)
-        else:
-            getattr(self, '_handle_%s' % ch)()
+        # Handle this event.
+        try:
+            if not hasattr(self, '_handle_%s' % ch):
+                raise AngryHorseException('Unknown keybinding: %r' % ch)
 
-        self.stdscr.refresh()
+            getattr(self, '_handle_%s' % ch)()
+        except AngryHorseException as e:
+            self.angry_horse(e.message)
 
     def _handle_q(self):
         raise TranquilizerException
@@ -207,39 +320,20 @@ class Curse(object):
         log.debug('alt-%s', key)
 
     def _handle_resize(self):
-        self.height, self.width = self.stdscr.getmaxyx()
-        self.redraw()
-
-    def _change_list_index(self, old, new):
-        self.toggle_highlight(self.pad_index, old, enable=False)
-        self.toggle_highlight(self.pad_index, new, enable=True)
-        self.list_index = new
-
-        self._pad_refresh(self.pads[self.pad_index], self.pad_index)
+        self.layout.resize()
 
     def _handle_j(self):
-        if self.list_index == len(self.lines[self.pad_index]):
-            self.angry_horse('End of the list!')
-            return
-
-        self._change_list_index(self.list_index, self.list_index + 1)
+        self.layout.scroll(1)
 
     _handle_down = _handle_j
 
     def _handle_k(self):
-        if not self.list_index:
-            self.angry_horse('Top of the list!')
-            return
-
-        self._change_list_index(self.list_index, self.list_index - 1)
+        self.layout.scroll(-1)
 
     _handle_up = _handle_k
 
     def _handle_npage(self):
-        index = min(self.list_index + self.height - 4,
-                    len(self.lines[self.pad_index]) - 1)
-        self._change_list_index(self.list_index, index)
+        self.layout.scroll(self.height - 4)
 
     def _handle_ppage(self):
-        index = max(self.list_index - self.height + 4, 0)
-        self._change_list_index(self.list_index, index)
+        self.layout.scroll(-self.height + 4)

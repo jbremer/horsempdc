@@ -30,9 +30,7 @@ if __name__ == '__main__':
     curse = Curse(bands=mpd.bands())
 
     curse.walking_horse()
-
-    curse.draw_menu()
-    curse.draw_pads()
+    curse.redraw()
 
     try:
         while True:

@@ -4,3 +4,7 @@
 
 class TranquilizerException(Exception):
     pass
+
+
+class AngryHorseException(Exception):
+    pass
