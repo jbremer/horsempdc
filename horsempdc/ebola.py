@@ -9,7 +9,7 @@ import locale
 import logging
 import time
 
-from horsempdc.art import doge_horse, angry_horse
+from horsempdc.art import load_ascii_art
 from horsempdc.exceptions import AngryHorseException, TranquilizerException
 
 locale.setlocale(locale.LC_ALL, '')
@@ -251,9 +251,7 @@ class Curse(object):
         curses.endwin()
 
     def walking_horse(self):
-        lines = doge_horse.split('\n')
-        rows = len(lines)
-        columns = max(len(line) for line in lines)
+        rows, columns, lines = load_ascii_art('doge-horse')
 
         self.redraw()
 
@@ -286,9 +284,12 @@ class Curse(object):
         self.stdscr.refresh()
 
     def angry_horse(self, *status_line):
-        lines = angry_horse.split('\n')
-        rows = len(lines)
-        columns = max(len(line) for line in lines)
+        # Use the angry horse if there's enough space for it.
+        rows, columns, lines = load_ascii_art('angry-horse')
+
+        # Otherwise hope the dumb horse is small enough.
+        if rows >= self.height or columns >= self.width:
+            rows, columns, lines = load_ascii_art('dumb-horse')
 
         self.redraw()
 

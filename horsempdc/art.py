@@ -4,7 +4,7 @@
 
 # Thanks to http://www.asciiworld.com/-Horses-.html
 
-doge_horse = r"""
+_doge_horse = r"""
                                  |\    /|
                               ___| \,,/_/
                            ---__/ \/    \
@@ -26,7 +26,20 @@ doge_horse = r"""
   /__\                       /___\
 """
 
-angry_horse = r"""
+# Thanks to Neil Smith, http://www.ascii-art.de/ascii/ghi/horse.txt
+
+_dumb_horse = r"""
+     ./|,,/|
+    <   o o)
+   <\ (    |
+  <\\  |\  |
+ <\\\  |(__)
+<\\\\  |
+"""
+
+# Thanks to http://www.asciiworld.com/-Horses-.html
+
+_angry_horse = r"""
                 ,, ,,, ,,,, ,,,,,,,,
           /\        /;; ;;;;;;;;;;;;;; ;;;/ ,;`.   ,,,,
          ;  `-.    /// //////// /////  // ,','`;. ///;;;;,.
@@ -74,3 +87,21 @@ angry_horse = r"""
                                    ;
                                    `----------------------------
 """
+
+
+def load_ascii_art(name):
+    inventory = {
+        'doge-horse': _doge_horse,
+        'dumb-horse': _dumb_horse,
+        'angry-horse': _angry_horse,
+    }
+
+    lines = inventory[name].split('\n')
+    if not lines[0]:
+        lines = lines[1:]
+    if not lines[-1]:
+        lines = lines[:-1]
+
+    rows = len(lines)
+    columns = max(len(line) for line in lines)
+    return rows, columns, lines
