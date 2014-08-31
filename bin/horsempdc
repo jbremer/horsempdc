@@ -6,6 +6,7 @@
 import argparse
 
 from horsempdc.mpd.mopidy import MopidyClient
+from horsempdc.ebola import Curse
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -13,3 +14,10 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     mpd = MopidyClient(host=args.host)
+    curse = Curse()
+
+    try:
+        while True:
+            curse.wait()
+    except KeyboardInterrupt:
+        curse.finish()
