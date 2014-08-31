@@ -178,7 +178,7 @@ class Layout(object):
 
 
 class Curse(object):
-    def __init__(self, layout, bands):
+    def __init__(self, layout, active_column, bands):
         self._init_ncurses()
 
         self.columns = {
@@ -201,7 +201,7 @@ class Curse(object):
         # Default layout.
         self.layout = Layout(self.stdscr, *columns)
 
-        self.layout.active_column(2)
+        self.layout.active_column(active_column - 1)
 
         self.height, self.width = self.stdscr.getmaxyx()
 
