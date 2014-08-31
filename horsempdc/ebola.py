@@ -31,7 +31,9 @@ class Curse(object):
         self.stdscr.keypad(1)
         curses.curs_set(0)
 
-        self._bands = bands
+        self.lines = {
+            2: bands,
+        }
 
         self.height, self.width = self.stdscr.getmaxyx()
 
@@ -47,6 +49,10 @@ class Curse(object):
                 self.characters[value] = key[4:].lower()
 
         self._horse_index = 0
+        self._status_line = ''
+
+        self.pad_index = 2
+        self.list_index = 0
 
     def finish(self):
         curses.nocbreak()
@@ -103,29 +109,43 @@ class Curse(object):
             self.stdscr.addch(self.height - 2, self.column_width * idx - 1,
                               curses.ACS_BTEE)
 
+    def _pad_refresh(self, pad, index):
+        pad.refresh(0, 0,
+                    2, self.column_width * index,
+                    self.height - 3, self.column_width * (index + 1) - 1)
+
     def _draw_pad(self, index, lines):
         pad = curses.newpad(len(lines), self.column_width - 1)
 
         for idx, line in enumerate(lines):
             pad.addstr(idx, 0, line.encode(self.LOCALE))
 
-        pad.refresh(0, 0,
-                    2, self.column_width * index,
-                    self.height - 3, self.column_width * (index + 1) - 1)
+        # Highlight line if required.
+        if self.pad_index == index:
+            pad.chgat(self.list_index, 0,
+                      len(self.lines[self.pad_index][self.list_index]),
+                      curses.A_REVERSE)
 
+        self._pad_refresh(pad, index)
         return pad
 
     def draw_pads(self):
         self.stdscr.refresh()
 
+        self.pads_index = {
+            2: 0,
+        }
+
         self.pads = {
-            2: self._draw_pad(2, self._bands),
+            2: self._draw_pad(2, self.lines[2]),
         }
 
     def redraw(self):
         self.stdscr.erase()
         self.draw_menu()
         self.draw_pads()
+
+        self.status(self._status_line)
 
     def status(self, line, *args):
         # Apply any arguments if given.
@@ -134,9 +154,10 @@ class Curse(object):
         # Pad the line until the end of the screen.
         line += ' ' * (self.width - len(line) - 1)
 
+        self._status_line = line
         self.stdscr.addstr(self.height - 1, 0, line)
 
-    def angry_horse(self, ch):
+    def angry_horse(self, *status_line):
         lines = angry_horse.split('\n')
         rows = len(lines)
         columns = max(len(line) for line in lines)
@@ -146,13 +167,18 @@ class Curse(object):
         for idx, line in enumerate(lines):
             x = (self.width - columns) / 2
             y = (self.height - rows) / 2 + idx
-            self.stdscr.addstr(y, x, line)
+            self.stdscr.addstr(y, x, line, curses.A_BOLD)
 
-        self.status('Unknown keybinding: %r', ch)
+        self.status(*status_line)
         self.stdscr.refresh()
         time.sleep(0.1)
         self.redraw()
-        self.status('Unknown keybinding: %r', ch)
+        self.status(*status_line)
+
+    def toggle_highlight(self, pad_index, list_index, enable):
+        length = len(self.lines[pad_index][list_index])
+        attr = curses.A_REVERSE if enable else 0
+        self.pads[pad_index].chgat(list_index, 0, length, attr)
 
     def wait(self):
         self.stdscr.refresh()
@@ -166,8 +192,37 @@ class Curse(object):
         log.debug('Received character %r', ch)
 
         if not hasattr(self, '_handle_%s' % ch):
-            self.angry_horse(ch)
+            self.angry_horse('Unknown keybinding: %r', ch)
         else:
             getattr(self, '_handle_%s' % ch)()
 
         self.stdscr.refresh()
+
+    def _handle_j(self):
+        if self.list_index == len(self.lines[self.pad_index]):
+            self.angry_horse('End of the list!')
+            return
+
+        self.toggle_highlight(self.pad_index, self.list_index, enable=False)
+        self.list_index += 1
+        self.toggle_highlight(self.pad_index, self.list_index, enable=True)
+
+        self._pad_refresh(self.pads[self.pad_index], self.pad_index)
+
+    def _handle_k(self):
+        if not self.list_index:
+            self.angry_horse('Top of the list!')
+            return
+
+        self.toggle_highlight(self.pad_index, self.list_index, enable=True)
+        self.list_index -= 1
+        self.toggle_highlight(self.pad_index, self.list_index, enable=False)
+
+        self._pad_refresh(self.pads[self.pad_index], self.pad_index)
+
+    def _handle_q(self):
+        raise TranquilizerException
+
+    def _handle_alt(self):
+        key = self.stdscr.getkey()
+        log.debug('alt-%s', key)
