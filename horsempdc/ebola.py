@@ -156,8 +156,8 @@ class Layout(object):
 
         for idx in xrange(1, len(self.columns)):
             # Vertical line to distinguish between the various columns.
-            self.window.vline(0, self.column_width * idx - 1,
-                              curses.ACS_VLINE, self.height - 2)
+            # self.window.vline(0, self.column_width * idx - 1,
+            #                   curses.ACS_VLINE, self.height - 2)
 
             # Plus sign at points where horizontal and vertical lines cross in
             # the menu and "bottom tee" signs where the vertical lines and the
