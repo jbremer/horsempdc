@@ -4,14 +4,26 @@
 # See the file 'docs/LICENSE.txt' for copying permission.
 
 import argparse
+import logging
 
-from horsempdc.mpd.mopidy import MopidyClient
 from horsempdc.ebola import Curse
+from horsempdc.logging import init_logging
+from horsempdc.mpd.mopidy import MopidyClient
+
+
+log = logging.getLogger('horsempdc')
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
+    parser.add_argument('-d', '--debug', action='store_true', help='Enable debug logging.')
     parser.add_argument('--host', type=str, default='localhost:6680', help='Host to Mopidy.')
     args = parser.parse_args()
+
+    if args.debug:
+        init_logging(level=logging.DEBUG)
+    else:
+        init_logging(level=logging.INFO)
 
     mpd = MopidyClient(host=args.host)
     curse = Curse()

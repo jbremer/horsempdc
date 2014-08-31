@@ -2,6 +2,8 @@
 # This file is part of HorseMPDC - http://www.horsempdc.org/.
 # See the file 'docs/LICENSE.txt' for copying permission.
 
+from __future__ import absolute_import
+
 import curses
 import logging
 
@@ -17,10 +19,18 @@ class Curse(object):
         'library',
     ]
 
+    CHARACTERS = {}
+
+    for key in dir(curses):
+        value = getattr(curses, key)
+        if isinstance(value, (int, long)):
+            CHARACTERS[value] = key
+
     def __init__(self):
         self.stdscr = curses.initscr()
         curses.noecho()
         curses.cbreak()
+        self.stdscr.keypad(1)
         curses.wrapper(self.handle_exception)
 
         self.draw()
@@ -38,7 +48,8 @@ class Curse(object):
         _, width = self.stdscr.getmaxyx()
 
         for idx, row in enumerate(self.MENU):
-            self.stdscr.addstr(0, int(idx * width / len(self.MENU)), row)
+            offset = int(idx * width / len(self.MENU))
+            self.stdscr.addstr(0, offset, '%d: %s' % (idx + 1, row))
 
         self.stdscr.hline(1, 0, ord('-'), width)
 
@@ -48,3 +59,5 @@ class Curse(object):
 
     def wait(self):
         ch = self.stdscr.getch()
+        log.debug('Received character %d (%s)',
+                  ch, self.CHARACTERS.get(ch, ch))
