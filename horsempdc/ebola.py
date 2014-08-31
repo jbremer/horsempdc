@@ -203,7 +203,7 @@ class Curse(object):
 
         self.layout.active_column(active_column - 1)
 
-        self.height, self.width = self.stdscr.getmaxyx()
+        self.update_size()
 
         self._horse_index = 0
         self._status_line = ''
@@ -283,6 +283,9 @@ class Curse(object):
         self.layout.resize()
         self.stdscr.refresh()
 
+    def update_size(self):
+        self.height, self.width = self.stdscr.getmaxyx()
+
     def angry_horse(self, *status_line):
         # Use the angry horse if there's enough space for it.
         rows, columns, lines = load_ascii_art('angry-horse')
@@ -340,6 +343,7 @@ class Curse(object):
 
     def _handle_resize(self):
         self.layout.resize()
+        self.update_size()
 
     def _handle_h(self):
         self.layout.previous_column()
