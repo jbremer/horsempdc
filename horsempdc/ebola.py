@@ -199,28 +199,6 @@ class Curse(object):
 
         self.stdscr.refresh()
 
-    def _handle_j(self):
-        if self.list_index == len(self.lines[self.pad_index]):
-            self.angry_horse('End of the list!')
-            return
-
-        self.toggle_highlight(self.pad_index, self.list_index, enable=False)
-        self.list_index += 1
-        self.toggle_highlight(self.pad_index, self.list_index, enable=True)
-
-        self._pad_refresh(self.pads[self.pad_index], self.pad_index)
-
-    def _handle_k(self):
-        if not self.list_index:
-            self.angry_horse('Top of the list!')
-            return
-
-        self.toggle_highlight(self.pad_index, self.list_index, enable=False)
-        self.list_index -= 1
-        self.toggle_highlight(self.pad_index, self.list_index, enable=True)
-
-        self._pad_refresh(self.pads[self.pad_index], self.pad_index)
-
     def _handle_q(self):
         raise TranquilizerException
 
@@ -231,3 +209,37 @@ class Curse(object):
     def _handle_resize(self):
         self.height, self.width = self.stdscr.getmaxyx()
         self.redraw()
+
+    def _change_list_index(self, old, new):
+        self.toggle_highlight(self.pad_index, old, enable=False)
+        self.toggle_highlight(self.pad_index, new, enable=True)
+        self.list_index = new
+
+        self._pad_refresh(self.pads[self.pad_index], self.pad_index)
+
+    def _handle_j(self):
+        if self.list_index == len(self.lines[self.pad_index]):
+            self.angry_horse('End of the list!')
+            return
+
+        self._change_list_index(self.list_index, self.list_index + 1)
+
+    _handle_down = _handle_j
+
+    def _handle_k(self):
+        if not self.list_index:
+            self.angry_horse('Top of the list!')
+            return
+
+        self._change_list_index(self.list_index, self.list_index - 1)
+
+    _handle_up = _handle_k
+
+    def _handle_npage(self):
+        index = min(self.list_index + self.height - 4,
+                    len(self.lines[self.pad_index]) - 1)
+        self._change_list_index(self.list_index, index)
+
+    def _handle_ppage(self):
+        index = max(self.list_index - self.height + 4, 0)
+        self._change_list_index(self.list_index, index)
