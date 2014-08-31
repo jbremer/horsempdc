@@ -163,7 +163,7 @@ class Layout(object):
 
 
 class Curse(object):
-    def __init__(self, bands):
+    def __init__(self, layout, bands):
         self._init_ncurses()
 
         self.columns = {
@@ -179,11 +179,12 @@ class Curse(object):
         # when .getch() returns "failure", i.e., no keys available.
         self._nonblocking_handler = None
 
+        columns = []
+        for column in layout:
+            columns.append(self.columns[column])
+
         # Default layout.
-        self.layout = Layout(self.stdscr,
-                             self.columns['help'],
-                             self.columns['playlist'],
-                             self.columns['bands'])
+        self.layout = Layout(self.stdscr, *columns)
 
         self.layout.active_column(2)
 

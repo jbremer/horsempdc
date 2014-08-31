@@ -27,7 +27,7 @@ if __name__ == '__main__':
         init_logging(level=logging.INFO)
 
     mpd = MopidyClient(host=args.host)
-    curse = Curse(bands=mpd.bands())
+    curse = Curse(['help', 'playlist', 'bands'], bands=mpd.bands())
 
     curse.walking_horse()
     curse.redraw()
