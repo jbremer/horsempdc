@@ -50,12 +50,17 @@ class Column(object):
     def __init__(self, name):
         self.name = name
 
+        self.window = None
         self.pad = None
 
         self.x = None
         self.y = None
         self.width = None
         self.height = None
+
+        # Offset for reach line. Can be used to prepend each line with
+        # an arbitrary string.
+        self.line_offset = 0
 
         # Current item index.
         self.index = 0
@@ -69,7 +74,8 @@ class Column(object):
 
     def prepare(self):
         if self.pad is None:
-            self.pad = curses.newpad(self.length, self.width - 1)
+            self.pad = curses.newpad(self.length,
+                                     self.width - self.line_offset - 1)
 
             for idx, line in enumerate(self.lines):
                 self.pad.addstr(idx, 0, line.encode(LOCALE))
@@ -81,12 +87,15 @@ class Column(object):
 
     def refresh(self):
         self.pad.refresh(self.offset, 0,
-                         self.y, self.x,
+                         self.y, self.x + self.line_offset,
                          self.y + self.height - 1,
                          self.x + self.width - 1)
 
-    def draw(self):
+    def draw(self, focus=True):
         self.refresh()
+
+    def handle_alt(self, key):
+        raise AngryHorseException('Unknown combination: alt-%s' % key)
 
     def scroll(self, difference):
         # Top of the list.
@@ -138,6 +147,24 @@ class BandsColumn(Column):
         Column.__init__(self, name)
         self.populate(bands)
 
+        self.charset = '1234567890qwertyuiop'
+        self.line_offset = 2
+
+    def draw(self, focus=True):
+        attr = curses.A_REVERSE if focus else 0
+        for idx, ch in enumerate(self.charset):
+            self.window.addch(self.y + idx, self.x, ch, attr)
+
+        Column.draw(self)
+
+    def handle_alt(self, key):
+        # If we're not handling this alt-key combination then we pass it
+        # on to our parent class.
+        if key not in self.charset:
+            Column.handle_alt(key)
+            return
+
+        self.scroll(self.offset + self.charset.index(key) - self.index)
 
 class Layout(object):
     def __init__(self, window, *columns):
@@ -173,13 +200,17 @@ class Layout(object):
 
     def previous_column(self):
         self.current.highlight(False)
+        self.current.refresh()
         self.active_column(self.current_index - 1)
         self.current.highlight(True)
+        self.current.refresh()
 
     def next_column(self):
         self.current.highlight(False)
+        self.current.refresh()
         self.active_column(self.current_index + 1)
         self.current.highlight(True)
+        self.current.refresh()
 
     def draw(self):
         self.column_width = self.width / len(self.columns)
@@ -192,6 +223,7 @@ class Layout(object):
         # Draw each column's name.
         for idx, column in enumerate(self.columns):
             # Initialize this Columns location properties.
+            column.window = self.window
             column.y = 2
             column.x = idx * self.column_width
             column.width = self.column_width
@@ -220,7 +252,7 @@ class Layout(object):
 
         # Draw the columns.
         for column in self.columns:
-            column.draw()
+            column.draw(self.current == column)
 
         # Draw the status line.
         self.window.addstr(self.height - 1, 0, self.status_line)
@@ -371,7 +403,7 @@ class Curse(object):
 
     def _handle_alt(self):
         key = self.stdscr.getkey()
-        log.debug('alt-%s', key)
+        self.layout.current.handle_alt(key)
 
     def _handle_resize(self):
         self.layout.resize()
