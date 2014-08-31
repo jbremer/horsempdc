@@ -32,7 +32,7 @@ if __name__ == '__main__':
     try:
         mpd = MopidyClient(host=args.host)
 
-        curse = Curse(['help', 'playlist', 'bands'], 3, bands=mpd.bands())
+        curse = Curse(['help', 'playlist', 'bands'], 3, mpd=mpd)
 
         # Begin of the horse ride.
         curse.install_horse_handler(WalkingHorse())

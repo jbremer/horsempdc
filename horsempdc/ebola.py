@@ -52,6 +52,7 @@ class Column(object):
         self.name = name
 
         self.window = None
+        self.parent = None
         self.pad = None
 
         self.x = None
@@ -97,6 +98,9 @@ class Column(object):
 
     def handle_alt(self, key):
         raise AngryHorseException('Unknown combination: alt-%s.' % key)
+
+    def handle_enter(self):
+        raise AngryHorseException('This window does not support enter.')
 
     def scroll(self, difference):
         # Top of the list.
@@ -148,10 +152,13 @@ class BandsColumn(Column):
         Column.__init__(self, name)
         self.populate(bands)
 
+        self.bands = bands
+
         self.charset = '1234567890qwertyuiop'
         self.line_offset = 2
 
     def draw(self, focus=True):
+        # Alt- combination hotkeys.
         attr = curses.A_REVERSE if focus else 0
         for idx, ch in enumerate(self.charset):
             self.window.addch(self.y + idx, self.x, ch, attr)
@@ -167,9 +174,32 @@ class BandsColumn(Column):
 
         self.scroll(self.offset + self.charset.index(key) - self.index)
 
+    def handle_enter(self):
+        albums = self.parent.curse.mpd.albums(self.lines[self.index])
+
+        self.window.clear()
+
+        l = Layout(self.parent.curse,
+                   BandsColumn('bands', self.bands),
+                   AlbumsColumn('albums', albums))
+
+        l.active_column(1)
+        l.resize()
+        self.parent.curse.stack.append(l)
+
+        self.window.refresh()
+
+
+class AlbumsColumn(Column):
+    def __init__(self, name, albums):
+        Column.__init__(self, name)
+        self.populate(albums)
+
+
 class Layout(object):
-    def __init__(self, window, *columns):
-        self.window = window
+    def __init__(self, curse, *columns):
+        self.curse = curse
+        self.window = curse.stdscr
         self.columns = columns
 
         self.lines = []
@@ -225,6 +255,7 @@ class Layout(object):
         for idx, column in enumerate(self.columns):
             # Initialize this Columns location properties.
             column.window = self.window
+            column.parent = self
             column.y = 2
             column.x = idx * self.column_width
             column.width = self.column_width
@@ -260,7 +291,7 @@ class Layout(object):
 
 
 class Curse(object):
-    def __init__(self, layout, active_column, bands):
+    def __init__(self, layout, active_column, mpd):
         self._init_ncurses()
 
         self.columns = {
@@ -268,9 +299,11 @@ class Curse(object):
             'playlist': Column('playlist'),
         }
 
+        self.mpd = mpd
+
         self.columns['help'].populate(['foo', 'bar', 'help'])
         self.columns['playlist'].populate(['foo', 'bar', 'playlist'])
-        self.columns['bands'] = BandsColumn('bands', bands)
+        self.columns['bands'] = BandsColumn('bands', mpd.bands())
 
         # Callback function that can be used to handle non-blocking events,
         # when .getch() returns "failure", i.e., no keys available.
@@ -281,14 +314,21 @@ class Curse(object):
             columns.append(self.columns[column])
 
         # Default layout.
-        self.layout = Layout(self.stdscr, *columns)
+        layout = Layout(self, *columns)
+        layout.active_column(active_column - 1)
 
-        self.layout.active_column(active_column - 1)
+        # First entry in the layout stack.
+        self.stack = [layout]
 
         self.update_size()
 
         self.pad_index = 2
         self.list_index = 0
+
+    @property
+    def layout(self):
+        """Returns the most recent Layout frame."""
+        return self.stack[-1]
 
     def _init_ncurses(self):
         # Initialize ncurses and get the main window object.
@@ -318,6 +358,7 @@ class Curse(object):
         # only available after initscr() has been called.
         self.characters = {
             4: 'ctrl_d',
+            10: 'enter',
             21: 'ctrl_u',
             27: 'alt',
         }
@@ -448,3 +489,6 @@ class Curse(object):
 
     def _handle_ctrl_u(self):
         self.layout.scroll((-self.height + 4) / 2)
+
+    def _handle_enter(self):
+        self.layout.current.handle_enter()

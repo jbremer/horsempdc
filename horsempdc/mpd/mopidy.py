@@ -26,3 +26,13 @@ class MopidyClient(MPD):
                 self._bands[row['name']] = row['uri']
 
         return self._bands_ordered()
+
+    def albums(self, band):
+        rows = self.query('core.library.browse', uri=self._bands[band])
+        for row in rows:
+            if band not in self._albums:
+                self._albums[band] = {}
+
+            self._albums[band][row['name']] = row['uri']
+
+        return self._albums_ordered(band)
