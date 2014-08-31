@@ -7,6 +7,9 @@ from __future__ import absolute_import
 import curses
 import locale
 import logging
+import time
+
+from horsempdc.art import doge_horse
 
 locale.setlocale(locale.LC_ALL, '')
 log = logging.getLogger(__name__)
@@ -21,12 +24,14 @@ class Curse(object):
 
     LOCALE = locale.getpreferredencoding()
 
-    def __init__(self):
+    def __init__(self, bands):
         self.stdscr = curses.initscr()
         curses.noecho()
         curses.cbreak()
         self.stdscr.keypad(1)
         curses.curs_set(0)
+
+        self._bands = bands
 
         self.height, self.width = self.stdscr.getmaxyx()
 
@@ -41,11 +46,35 @@ class Curse(object):
             if key.startswith('KEY_') and isinstance(value, int):
                 self.characters[value] = key[4:].lower()
 
+        self._horse_index = 0
+
     def finish(self):
         curses.nocbreak()
         self.stdscr.keypad(0)
         curses.echo()
         curses.endwin()
+
+    def walking_horse(self):
+        lines = doge_horse.split('\n')
+        rows = len(lines)
+        columns = max(len(line) for line in lines)
+
+        self.redraw()
+
+        # Begin and end of the horse ride.
+        if not self._horse_index:
+            self.stdscr.nodelay(1)
+        elif self._horse_index + columns >= self.width:
+            self.stdscr.nodelay(0)
+            return
+
+        for idx, line in enumerate(lines):
+            self.stdscr.addstr(self.height - rows - 1 + idx,
+                               self._horse_index, line)
+
+        self._horse_index += 2
+
+        self.stdscr.refresh()
 
     def draw_menu(self, borders=True):
         self.column_width = self.width / len(self.MENU)
@@ -86,12 +115,17 @@ class Curse(object):
 
         return pad
 
-    def draw_pads(self, bands):
+    def draw_pads(self):
         self.stdscr.refresh()
 
         self.pads = {
-            2: self._draw_pad(2, bands),
+            2: self._draw_pad(2, self._bands),
         }
+
+    def redraw(self):
+        self.stdscr.erase()
+        self.draw_menu()
+        self.draw_pads()
 
     def status(self, line, *args):
         # Apply any arguments if given.
@@ -105,6 +139,10 @@ class Curse(object):
     def wait(self):
         self.stdscr.refresh()
         ch = self.stdscr.getch()
+        if ch < 0:
+            time.sleep(0.10)
+            self.walking_horse()
+            return
 
         ch = self.characters.get(ch, curses.keyname(ch))
         log.debug('Received character %r', ch)

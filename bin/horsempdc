@@ -26,10 +26,12 @@ if __name__ == '__main__':
         init_logging(level=logging.INFO)
 
     mpd = MopidyClient(host=args.host)
-    curse = Curse()
+    curse = Curse(bands=mpd.bands())
+
+    curse.walking_horse()
 
     curse.draw_menu()
-    curse.draw_pads(bands=mpd.bands())
+    curse.draw_pads()
 
     try:
         while True:
