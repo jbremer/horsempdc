@@ -252,8 +252,10 @@ class Curse(object):
             self.stdscr.nodelay(0)
             return
 
+        extra = [0, 1, 2, 1, 0][self._horse_index % 5]
+
         for idx, line in enumerate(lines):
-            self.stdscr.addstr(self.height - rows - 1 + idx,
+            self.stdscr.addstr(self.height - rows - 1 + idx - extra,
                                self._horse_index, line)
 
         self._horse_index += 2
