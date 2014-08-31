@@ -8,7 +8,7 @@ import curses
 import logging
 import sys
 
-from horsempdc.ebola import Curse
+from horsempdc.ebola import Curse, WalkingHorse
 from horsempdc.exceptions import TranquilizerException
 from horsempdc.logging import init_logging
 from horsempdc.mpd.mopidy import MopidyClient
@@ -34,7 +34,10 @@ if __name__ == '__main__':
 
         curse = Curse(['help', 'playlist', 'bands'], 3, bands=mpd.bands())
 
-        curse.walking_horse()
+        # Begin of the horse ride.
+        curse.install_horse_handler(WalkingHorse())
+
+        # Setup the usual.
         curse.redraw()
 
         while True:

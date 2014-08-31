@@ -11,6 +11,7 @@ import time
 
 from horsempdc.art import load_ascii_art
 from horsempdc.exceptions import AngryHorseException, TranquilizerException
+from horsempdc.exceptions import RemoveHorseHandler
 
 locale.setlocale(locale.LC_ALL, '')
 LOCALE = locale.getpreferredencoding()
@@ -20,7 +21,29 @@ log = logging.getLogger(__name__)
 
 class WalkingHorse(object):
     def __init__(self):
-        pass
+        self.index = 0
+        self.window = None
+
+    def gallop(self):
+        return [0, 1, 2, 1, 0][self.index % 5]
+
+    def draw(self):
+        rows, columns, lines = load_ascii_art('doge-horse')
+
+        height, width = self.window.getmaxyx()
+
+        # End of the horse ride.
+        if self.index + columns >= width:
+            raise RemoveHorseHandler
+
+        for idx, line in enumerate(lines):
+            self.window.addstr(height - rows - 2 + idx - self.gallop(),
+                               self.index, line)
+
+        self.index += 2
+
+        self.window.refresh()
+        time.sleep(0.1)
 
 
 class Column(object):
@@ -276,32 +299,10 @@ class Curse(object):
         curses.echo()
         curses.endwin()
 
-    def walking_horse(self):
-        rows, columns, lines = load_ascii_art('doge-horse')
-
-        self.redraw()
-
-        # Begin of the horse ride.
-        if not self._horse_index:
-            self._nonblocking_handler = self.walking_horse
-            self.stdscr.nodelay(1)
-
-        # End of the horse ride.
-        elif self._horse_index + columns >= self.width:
-            self._nonblocking_handler = None
-            self.stdscr.nodelay(0)
-            return
-
-        extra = [0, 1, 2, 1, 0][self._horse_index % 5]
-
-        for idx, line in enumerate(lines):
-            self.stdscr.addstr(self.height - rows - 1 + idx - extra,
-                               self._horse_index, line)
-
-        self._horse_index += 2
-
-        self.stdscr.refresh()
-        time.sleep(0.1)
+    def install_horse_handler(self, horse):
+        self._nonblocking_handler = horse.draw
+        horse.window = self.stdscr
+        self.stdscr.nodelay(1)
 
     def redraw(self):
         self.stdscr.erase()
@@ -343,7 +344,12 @@ class Curse(object):
             # If .getch() returns -1 then we're in non-blocking mode which is
             # only the case when this has been specifically requested. Thus
             # we allow the event to be handled.
-            self._nonblocking_handler()
+            self.redraw()
+            try:
+                self._nonblocking_handler()
+            except RemoveHorseHandler:
+                self._nonblocking_handler = None
+                self.stdscr.nodelay(0)
             return
 
         # Check if we can resolve this character in our mapping and otherwise

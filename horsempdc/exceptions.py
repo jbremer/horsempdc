@@ -8,3 +8,7 @@ class TranquilizerException(Exception):
 
 class AngryHorseException(Exception):
     pass
+
+
+class RemoveHorseHandler(Exception):
+    pass
