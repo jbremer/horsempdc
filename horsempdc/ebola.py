@@ -71,17 +71,43 @@ class Column(object):
             if difference == -1:
                 raise AngryHorseException('Top of the list!')
 
+            new_index = 0
+
         # End of the list.
         elif self.index + difference >= self.length:
             if difference == 1:
                 raise AngryHorseException('End of the list!')
 
-        # Handle this scroll.
+            new_index = self.length - 1
+
+        # Regular case.
         else:
-            self.highlight(False)
-            self.index += difference
-            self.highlight(True)
-            self.refresh()
+            new_index = self.index + difference
+
+        # Handle this scroll.
+        self.highlight(False)
+        self.index = new_index
+        self.highlight(True)
+
+        # If the highlighted item is now beyond this screen then we have
+        # to update the offset.
+        if self.index < self.offset:
+            self.offset -= self.height
+        elif self.index >= self.offset + self.height:
+            self.offset += self.height
+
+        # A bit of boundary checking.
+        if self.offset < 0:
+            self.offset = 0
+
+        # If there are enough items to cover one or more pages, and we're
+        # reaching the last page, then make sure that the last item is
+        # actually at the bottom of the page.
+        if self.length >= self.height and \
+                self.offset >= self.length - self.height:
+            self.offset = self.length - self.height
+
+        self.refresh()
 
 
 class BandsColumn(Column):
