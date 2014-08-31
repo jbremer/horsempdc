@@ -23,6 +23,7 @@ class WalkingHorse(object):
     def __init__(self):
         self.index = 0
         self.window = None
+        self.width = None
 
     def gallop(self):
         return [0, 1, 2, 1, 0][self.index % 5]
@@ -30,15 +31,15 @@ class WalkingHorse(object):
     def draw(self):
         rows, columns, lines = load_ascii_art('doge-horse')
 
-        height, width = self.window.getmaxyx()
+        height, _ = self.window.getmaxyx()
 
         # End of the horse ride.
-        if self.index + columns >= width:
+        if self.index >= self.width:
             raise RemoveHorseHandler
 
         for idx, line in enumerate(lines):
             self.window.addstr(height - rows - 2 + idx - self.gallop(),
-                               self.index, line)
+                               self.index, line[:self.width - self.index])
 
         self.index += 2
 
@@ -340,6 +341,11 @@ class Curse(object):
         self._nonblocking_handler = horse.draw
         horse.window = self.stdscr
         self.stdscr.nodelay(1)
+
+        # TODO Make this a bit more generic. We just don't want the horse to
+        # pass by the Bands column.
+        _, horse.width = self.stdscr.getmaxyx()
+        horse.width = horse.width / 3 * 2
 
     def redraw(self):
         self.stdscr.erase()
