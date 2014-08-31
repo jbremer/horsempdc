@@ -96,7 +96,7 @@ class Column(object):
         self.refresh()
 
     def handle_alt(self, key):
-        raise AngryHorseException('Unknown combination: alt-%s' % key)
+        raise AngryHorseException('Unknown combination: alt-%s.' % key)
 
     def scroll(self, difference):
         # Top of the list.
@@ -287,9 +287,6 @@ class Curse(object):
 
         self.update_size()
 
-        self._horse_index = 0
-        self._status_line = ''
-
         self.pad_index = 2
         self.list_index = 0
 
@@ -403,7 +400,7 @@ class Curse(object):
         # Handle this event.
         try:
             if not hasattr(self, '_handle_%s' % key):
-                raise AngryHorseException('Unknown keybinding: %r' % key)
+                raise AngryHorseException('Unknown keybinding: %r.' % key)
 
             getattr(self, '_handle_%s' % key)()
         except AngryHorseException as e:

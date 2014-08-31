@@ -50,3 +50,7 @@ if __name__ == '__main__':
         sys.stderr.write('Critical error occurred - please '
                          'restart the application\n')
         curse.finish()
+    except Exception as e:
+        log.exception('Critical error occurred')
+        if curse:
+            curse.finish()
