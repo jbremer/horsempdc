@@ -40,14 +40,18 @@ class Curse(object):
         curses.echo()
         curses.endwin()
 
-    def draw_menu(self):
+    def draw_menu(self, borders=True):
         height, width = self.stdscr.getmaxyx()
+
+        if borders:
+            self.stdscr.hline(1, 0, curses.ACS_HLINE, width)
 
         for idx, row in enumerate(self.MENU):
             offset = int(idx * width / len(self.MENU))
             self.stdscr.addstr(0, offset, '%d: %s' % (idx + 1, row))
 
-        self.stdscr.hline(1, 0, ord('-'), width)
+            if idx and borders:
+                self.stdscr.vline(0, offset - 1, curses.ACS_VLINE, height)
 
     def wait(self):
         self.stdscr.refresh()
