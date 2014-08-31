@@ -7,6 +7,7 @@ import argparse
 import logging
 
 from horsempdc.ebola import Curse
+from horsempdc.exceptions import TranquilizerException
 from horsempdc.logging import init_logging
 from horsempdc.mpd.mopidy import MopidyClient
 
@@ -36,5 +37,5 @@ if __name__ == '__main__':
     try:
         while True:
             curse.wait()
-    except KeyboardInterrupt:
+    except (TranquilizerException, KeyboardInterrupt):
         curse.finish()

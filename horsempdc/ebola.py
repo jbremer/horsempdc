@@ -10,6 +10,7 @@ import logging
 import time
 
 from horsempdc.art import doge_horse, angry_horse
+from horsempdc.exceptions import TranquilizerException
 
 locale.setlocale(locale.LC_ALL, '')
 log = logging.getLogger(__name__)
@@ -214,9 +215,9 @@ class Curse(object):
             self.angry_horse('Top of the list!')
             return
 
-        self.toggle_highlight(self.pad_index, self.list_index, enable=True)
-        self.list_index -= 1
         self.toggle_highlight(self.pad_index, self.list_index, enable=False)
+        self.list_index -= 1
+        self.toggle_highlight(self.pad_index, self.list_index, enable=True)
 
         self._pad_refresh(self.pads[self.pad_index], self.pad_index)
 
@@ -226,3 +227,7 @@ class Curse(object):
     def _handle_alt(self):
         key = self.stdscr.getkey()
         log.debug('alt-%s', key)
+
+    def _handle_resize(self):
+        self.height, self.width = self.stdscr.getmaxyx()
+        self.redraw()
