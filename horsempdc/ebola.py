@@ -42,10 +42,11 @@ class Column(object):
 
     def populate(self, lines):
         self.lines = lines
+        self.length = len(lines)
 
     def prepare(self):
         if self.pad is None:
-            self.pad = curses.newpad(len(self.lines), self.width - 1)
+            self.pad = curses.newpad(self.length, self.width - 1)
 
             for idx, line in enumerate(self.lines):
                 self.pad.addstr(idx, 0, line.encode(LOCALE))
@@ -71,7 +72,7 @@ class Column(object):
                 raise AngryHorseException('Top of the list!')
 
         # End of the list.
-        elif self.index + difference >= len(self.lines):
+        elif self.index + difference >= self.length:
             if difference == 1:
                 raise AngryHorseException('End of the list!')
 
@@ -97,6 +98,9 @@ class Layout(object):
         self.lines = []
         self.status_line = ''
 
+        self.current = None
+        self.current_index = None
+
     def status(self, line, *args):
         # Apply any arguments if given.
         line = line % args if args else line
@@ -109,6 +113,7 @@ class Layout(object):
     def active_column(self, index):
         if index >= 0 and index < len(self.columns):
             self.current = self.columns[index]
+            self.current_index = index
 
     def scroll(self, difference):
         self.current.scroll(difference)
@@ -116,6 +121,16 @@ class Layout(object):
     def resize(self):
         self.height, self.width = self.window.getmaxyx()
         self.draw()
+
+    def previous_column(self):
+        self.current.highlight(False)
+        self.active_column(self.current_index - 1)
+        self.current.highlight(True)
+
+    def next_column(self):
+        self.current.highlight(False)
+        self.active_column(self.current_index + 1)
+        self.current.highlight(True)
 
     def draw(self):
         self.column_width = self.width / len(self.columns)
@@ -325,6 +340,11 @@ class Curse(object):
     def _handle_resize(self):
         self.layout.resize()
 
+    def _handle_h(self):
+        self.layout.previous_column()
+
+    _handle_left = _handle_h
+
     def _handle_j(self):
         self.layout.scroll(1)
 
@@ -334,6 +354,11 @@ class Curse(object):
         self.layout.scroll(-1)
 
     _handle_up = _handle_k
+
+    def _handle_l(self):
+        self.layout.next_column()
+
+    _handle_right = _handle_l
 
     def _handle_npage(self):
         self.layout.scroll(self.height - 4)
