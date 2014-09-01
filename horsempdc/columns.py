@@ -7,6 +7,7 @@ from horsempdc.abstract import Column
 
 class BandsColumn(Column):
     HAS_ALT = True
+    name = 'bands'
 
     def __init__(self, bands):
         Column.__init__(self)
@@ -27,6 +28,7 @@ class BandsColumn(Column):
 
 class AlbumsColumn(Column):
     HAS_ALT = True
+    name = 'albums'
 
     def __init__(self, albums):
         Column.__init__(self)

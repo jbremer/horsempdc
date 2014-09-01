@@ -79,18 +79,18 @@ class Layout(object):
         self.draw()
 
     def previous_column(self):
-        self.current.highlight(False)
-        self.current.refresh()
+        self.current.highlight(enable=False)
+        self.current.draw(focus=False)
         self.active_column(self.current_index - 1)
-        self.current.highlight(True)
-        self.current.refresh()
+        self.current.highlight(enable=True)
+        self.current.draw(focus=True)
 
     def next_column(self):
-        self.current.highlight(False)
-        self.current.refresh()
+        self.current.highlight(enable=False)
+        self.current.draw(focus=False)
         self.active_column(self.current_index + 1)
-        self.current.highlight(True)
-        self.current.refresh()
+        self.current.highlight(enable=True)
+        self.current.draw(focus=True)
 
     def draw(self):
         self.column_width = self.width / len(self.columns)
@@ -169,9 +169,6 @@ class Curse(object):
         self.new_layout(active_column, columns)
 
         self.update_size()
-
-        self.pad_index = 2
-        self.list_index = 0
 
     @property
     def layout(self):

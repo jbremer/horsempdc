@@ -79,7 +79,7 @@ class Column(object):
         self.scroll(self.offset + self.CHARSET.index(key) - self.index)
 
     def handle_enter(self):
-        raise AngryHorseException('This window does not support enter.')
+        raise AngryHorseException('This column does not support enter.')
 
     def scroll(self, difference):
         # Top of the list.
