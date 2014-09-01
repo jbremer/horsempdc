@@ -13,6 +13,8 @@ LOCALE = locale.getpreferredencoding()
 
 class Column(object):
     COLUMNS = {}
+    HAS_ALT = False
+    CHARSET = '1234567890qwertyuiop'
 
     def __init__(self, name=None):
         self.name = name
@@ -28,7 +30,7 @@ class Column(object):
 
         # Offset for reach line. Can be used to prepend each line with
         # an arbitrary string.
-        self.line_offset = 0
+        self.line_offset = 2 if self.HAS_ALT else 0
 
         # Current item index.
         self.index = 0
@@ -60,10 +62,21 @@ class Column(object):
                          self.x + self.width - 1)
 
     def draw(self, focus=True):
+        if self.HAS_ALT:
+            # Alt- combination hotkeys.
+            attr = curses.A_REVERSE if focus else 0
+            for idx, ch in enumerate(self.CHARSET):
+                self.window.addch(self.y + idx, self.x, ch, attr)
+
         self.refresh()
 
     def handle_alt(self, key):
-        raise AngryHorseException('Unknown combination: alt-%s.' % key)
+        # If we're not handling this alt-key combination then we pass it
+        # on to our parent class.
+        if key not in self.CHARSET:
+            raise AngryHorseException('Unknown combination: alt-%s.' % key)
+
+        self.scroll(self.offset + self.CHARSET.index(key) - self.index)
 
     def handle_enter(self):
         raise AngryHorseException('This window does not support enter.')
