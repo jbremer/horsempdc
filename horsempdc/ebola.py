@@ -5,16 +5,14 @@
 from __future__ import absolute_import
 
 import curses
-import locale
 import logging
 import time
 
+from horsempdc.abstract import Column
 from horsempdc.art import load_ascii_art
+from horsempdc.columns import BandsColumn
 from horsempdc.exceptions import AngryHorseException, TranquilizerException
 from horsempdc.exceptions import RemoveHorseHandler
-
-locale.setlocale(locale.LC_ALL, '')
-LOCALE = locale.getpreferredencoding()
 
 log = logging.getLogger(__name__)
 
@@ -45,155 +43,6 @@ class WalkingHorse(object):
 
         self.window.refresh()
         time.sleep(0.1)
-
-
-class Column(object):
-    def __init__(self, name):
-        self.name = name
-
-        self.window = None
-        self.parent = None
-        self.pad = None
-
-        self.x = None
-        self.y = None
-        self.width = None
-        self.height = None
-
-        # Offset for reach line. Can be used to prepend each line with
-        # an arbitrary string.
-        self.line_offset = 0
-
-        # Current item index.
-        self.index = 0
-
-        # List offset from what should be visible in the pad.
-        self.offset = 0
-
-    def populate(self, lines):
-        self.lines = lines
-        self.length = len(lines)
-
-    def prepare(self):
-        if self.pad is None:
-            self.pad = curses.newpad(self.length,
-                                     self.width - self.line_offset - 1)
-
-            for idx, line in enumerate(self.lines):
-                self.pad.addstr(idx, 0, line.encode(LOCALE))
-
-    def highlight(self, enable=True):
-        attr = curses.A_REVERSE if enable else 0
-        length = len(self.lines[self.index])
-        self.pad.chgat(self.index, 0, length, attr)
-
-    def refresh(self):
-        self.pad.refresh(self.offset, 0,
-                         self.y, self.x + self.line_offset,
-                         self.y + self.height - 1,
-                         self.x + self.width - 1)
-
-    def draw(self, focus=True):
-        self.refresh()
-
-    def handle_alt(self, key):
-        raise AngryHorseException('Unknown combination: alt-%s.' % key)
-
-    def handle_enter(self):
-        raise AngryHorseException('This window does not support enter.')
-
-    def scroll(self, difference):
-        # Top of the list.
-        if self.index + difference < 0:
-            if difference == -1:
-                raise AngryHorseException('Top of the list!')
-
-            new_index = 0
-
-        # End of the list.
-        elif self.index + difference >= self.length:
-            if difference == 1:
-                raise AngryHorseException('End of the list!')
-
-            new_index = self.length - 1
-
-        # Regular case.
-        else:
-            new_index = self.index + difference
-
-        # Handle this scroll.
-        self.highlight(False)
-        self.index = new_index
-        self.highlight(True)
-
-        # If the highlighted item is now beyond this screen then we have
-        # to update the offset.
-        if self.index < self.offset:
-            self.offset -= self.height
-        elif self.index >= self.offset + self.height:
-            self.offset += self.height
-
-        # A bit of boundary checking.
-        if self.offset < 0:
-            self.offset = 0
-
-        # If there are enough items to cover one or more pages, and we're
-        # reaching the last page, then make sure that the last item is
-        # actually at the bottom of the page.
-        if self.length >= self.height and \
-                self.offset >= self.length - self.height:
-            self.offset = self.length - self.height
-
-        self.refresh()
-
-
-class BandsColumn(Column):
-    def __init__(self, name, bands):
-        Column.__init__(self, name)
-        self.populate(bands)
-
-        self.bands = bands
-
-        self.charset = '1234567890qwertyuiop'
-        self.line_offset = 2
-
-    def draw(self, focus=True):
-        # Alt- combination hotkeys.
-        attr = curses.A_REVERSE if focus else 0
-        for idx, ch in enumerate(self.charset):
-            self.window.addch(self.y + idx, self.x, ch, attr)
-
-        Column.draw(self)
-
-    def handle_alt(self, key):
-        # If we're not handling this alt-key combination then we pass it
-        # on to our parent class.
-        if key not in self.charset:
-            Column.handle_alt(key)
-            return
-
-        self.scroll(self.offset + self.charset.index(key) - self.index)
-
-    def handle_enter(self):
-        albums = self.parent.curse.mpd.albums(self.lines[self.index])
-
-        self.window.clear()
-
-        l = Layout(self.parent.curse,
-                   BandsColumn('bands', self.bands),
-                   AlbumsColumn('albums', albums))
-
-        l.active_column(1)
-        l.resize()
-        self.parent.curse.stack.append(l)
-
-        self.window.refresh()
-
-
-class AlbumsColumn(Column):
-    def __init__(self, name, albums):
-        Column.__init__(self, name)
-        self.populate(albums)
 
 
 class Layout(object):
@@ -303,7 +152,7 @@ class Curse(object):
 
         self.columns['help'].populate(['foo', 'bar', 'help'])
         self.columns['playlist'].populate(['foo', 'bar', 'playlist'])
-        self.columns['bands'] = BandsColumn('bands', mpd.bands())
+        self.columns['bands'] = BandsColumn(mpd.bands())
 
         # Callback function that can be used to handle non-blocking events,
         # when .getch() returns "failure", i.e., no keys available.
@@ -313,12 +162,11 @@ class Curse(object):
         for column in layout:
             columns.append(self.columns[column])
 
-        # Default layout.
-        layout = Layout(self, *columns)
-        layout.active_column(active_column - 1)
+        # Stack containing each Layout frame.
+        self.stack = []
 
-        # First entry in the layout stack.
-        self.stack = [layout]
+        # Default layout.
+        self.new_layout(active_column, columns)
 
         self.update_size()
 
@@ -329,6 +177,11 @@ class Curse(object):
     def layout(self):
         """Returns the most recent Layout frame."""
         return self.stack[-1]
+
+    def new_layout(self, active_column, columns):
+        layout = Layout(self, *columns)
+        layout.active_column(active_column - 1)
+        self.stack.append(layout)
 
     def _init_ncurses(self):
         # Initialize ncurses and get the main window object.
