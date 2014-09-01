@@ -73,7 +73,7 @@ class Column(object):
     def handle_alt(self, key):
         # If we're not handling this alt-key combination then we pass it
         # on to our parent class.
-        if key not in self.CHARSET:
+        if not self.HAS_ALT or key not in self.CHARSET:
             raise AngryHorseException('Unknown combination: alt-%s.' % key)
 
         self.scroll(self.offset + self.CHARSET.index(key) - self.index)
