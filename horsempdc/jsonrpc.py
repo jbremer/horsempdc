@@ -3,6 +3,7 @@
 # See the file 'docs/LICENSE.txt' for copying permission.
 
 import json
+import logging
 import requests
 
 
@@ -42,6 +43,8 @@ _CODES = {
     -32603: InternalRPCError,
 }
 
+log = logging.getLogger(__name__)
+
 
 class JsonRPC(object):
     def __init__(self, url):
@@ -59,9 +62,12 @@ class JsonRPC(object):
             'content-type': 'application/json',
         }
 
-        # TODO Wrap inside a try-catch handler.
-        r = requests.post(self.url, data=json.dumps(data),
-                          headers=headers).json()
+        try:
+            r = requests.post(self.url, data=json.dumps(data),
+                              headers=headers).json()
+        except Exception as e:
+            log.info("Error talking with API: %s", e)
+            return
 
         if 'error' in r:
             if r['error']['code'] in _CODES:
