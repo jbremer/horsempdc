@@ -43,12 +43,15 @@ class Column(object):
         self.length = len(lines)
 
     def prepare(self):
-        if self.pad is None:
-            self.pad = curses.newpad(self.length,
-                                     self.width - self.line_offset - 1)
+        if self.pad:
+            return
 
-            for idx, line in enumerate(self.lines):
-                self.pad.addstr(idx, 0, line.encode(LOCALE))
+        self.pad = curses.newpad(
+            self.length, self.width - self.line_offset - 1
+        )
+
+        for idx, line in enumerate(self.lines):
+            self.pad.addstr(idx, 0, line.encode(LOCALE))
 
     def highlight(self, enable=True):
         attr = curses.A_REVERSE if enable else 0
