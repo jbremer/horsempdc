@@ -67,7 +67,7 @@ class JsonRPC(object):
                               headers=headers).json()
         except Exception as e:
             log.info("Error talking with API: %s", e)
-            return
+            return []
 
         if 'error' in r:
             if r['error']['code'] in _CODES:
