@@ -199,7 +199,10 @@ class Curse(object):
         self.stdscr.keypad(1)
 
         # Disable the cursor.
-        curses.curs_set(0)
+        try:
+            curses.curs_set(0)
+        except:
+            pass
 
         # Initialize the characters lookup which helps us to resolve special
         # keys, e.g., Page Down, etc. We do this now as most special keys are
