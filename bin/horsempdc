@@ -10,7 +10,7 @@ import sys
 
 from horsempdc.ebola import Curse, WalkingHorse
 from horsempdc.exceptions import TranquilizerException
-from horsempdc.logging import init_logging
+from horsempdc.log import init_logging
 from horsempdc.mpd.mopidy import MopidyClient
 
 

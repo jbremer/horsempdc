@@ -2,8 +2,6 @@
 # This file is part of HorseMPDC - http://www.horsempdc.org/.
 # See the file 'docs/LICENSE.txt' for copying permission.
 
-from __future__ import absolute_import
-
 import curses
 import logging
 import time
